@@ -33,6 +33,7 @@ print(here())
 data_fosil <- read.csv(here("Data","Raw","share-electricity-fossil-fuels","share-electricity-fossil-fuels.csv"))
 data_renewables <- read.csv(here("Data","Raw","share-electricity-renewables","share-electricity-renewables.csv"))
 data_income <- read.csv(here("Data","Raw","world-bank-income-groups", "world-bank-income-groups.csv"))
+data_targets <- read.csv(here("Data","Raw","net-zero-targets", "net-zero-targets.csv"))
 ```
 
 
@@ -44,11 +45,15 @@ data_final <- data_fosil %>%
             by = c("Entity", "Year", "Code")) %>% 
   left_join(data_income,
             by = c("Entity", "Year", "Code")) %>% 
-  drop_na() %>%
-  select("Entity", "Code", "Year","Fossil.fuels.....electricity", "Renewables.....electricity", "World.Bank.s.income.classification") %>%
+   left_join(data_targets,
+            by = c("Entity",  "Code")) %>% 
+  drop_na() 
+  select("Entity", "Code", "Year.x","Fossil.fuels.....electricity", "Renewables.....electricity", "World.Bank.s.income.classification", "Status.of.net.zero.carbon.emissions.targets") %>%
     rename(Fossil_Fuels = Fossil.fuels.....electricity,
              Renewables = Renewables.....electricity,
-             Income_Group = World.Bank.s.income.classification)
+             Income_Group = World.Bank.s.income.classification,
+             Net_Zero_Targets = Status.of.net.zero.carbon.emissions.targets,
+             Year = Year.x)
 
 ```
 

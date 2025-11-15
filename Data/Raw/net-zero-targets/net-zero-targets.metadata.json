@@ -1,0 +1,38 @@
+{
+  "chart": {
+    "title": "Status of net-zero carbon emissions targets",
+    "subtitle": "The inclusion criteria for net-zero commitments may vary from country to country. For example, the inclusion of international aviation emissions; or the acceptance of carbon offsets. To see the year for which countries have pledged to achieve net-zero, hover over the country in the interactive version of this chart.",
+    "citation": "Energy and Climate Intelligence Unit, Data-Driven EnviroLab, NewClimate Institute, Oxford Net Zero - Net Zero Tracker (2023)",
+    "originalChartUrl": "https://ourworldindata.org/grapher/net-zero-targets?v=1&csvType=full&useColumnShortNames=false",
+    "selection": [
+      "Colombia",
+      "Bahrain",
+      "Estonia",
+      "Israel"
+    ]
+  },
+  "columns": {
+    "Status of net-zero carbon emissions targets": {
+      "titleShort": "Status of net-zero carbon emissions targets",
+      "titleLong": "Status of net-zero carbon emissions targets",
+      "descriptionShort": "The status of each country's commitment to 'net-zero' emissions. The specifics of this commitment can vary, with some countries pledging to reach net-zero greenhouse gas emissions, while others define this as carbon emissions only.",
+      "descriptionKey": [
+        "The net zero status of a country can be one of the following: - Achieved (externally validated) - Achieved (self-declared) - In law - In policy document - Declaration / pledge - Proposed / in discussion",
+        "The inclusion criteria for net-zero commitments may vary from country to country. For example, the inclusion of international aviation emissions, or the acceptance of carbon offsets."
+      ],
+      "shortUnit": "",
+      "unit": "",
+      "timespan": "2000-2070",
+      "type": "String",
+      "owidVariableId": 815288,
+      "shortName": "net_zero_status",
+      "lastUpdated": "2023-10-10",
+      "nextUpdate": "2025-12-15",
+      "citationShort": "Energy and Climate Intelligence Unit, Data-Driven EnviroLab, NewClimate Institute, Oxford Net Zero - Net Zero Tracker (2023) – with minor processing by Our World in Data",
+      "citationLong": "Energy and Climate Intelligence Unit, Data-Driven EnviroLab, NewClimate Institute, Oxford Net Zero - Net Zero Tracker (2023) – with minor processing by Our World in Data. “Status of net-zero carbon emissions targets” [dataset]. Net Zero Tracker, “Net Zero Tracker” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/815288.metadata.json"
+    }
+  },
+  "dateDownloaded": "2025-11-15",
+  "activeFilters": {}
+}
