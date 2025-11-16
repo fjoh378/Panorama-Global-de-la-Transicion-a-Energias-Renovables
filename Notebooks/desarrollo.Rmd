@@ -1,0 +1,419 @@
+---
+title: "Energias Renovables"
+author: "Equipo 10"
+date: "2025-11-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+	warning = FALSE,
+	error = F,
+  results='hide'
+)
+
+library(ggplot2)
+library(tidyverse)
+library(here)
+library(countrycode)
+library(broom)
+library(esquisse)
+library(forcats)
+library(rpart)
+library(rpart.plot)
+library(Metrics)
+library(knitr)
+
+# rm(list = ls())
+# gc(reset = TRUE)
+```
+
+
+```{r}
+# Cargando la base con los datos limpios
+datos <- read.csv(here("Data", "Clean", "data.csv"),  row.names = 1)
+```
+
+```{r}
+# Agregando el continente que le conrresponde a cada país
+datos <- datos %>%
+  dplyr::mutate(
+    Continent = countrycode(
+      Entity,
+      origin = "country.name",
+      destination = "continent")
+  )
+head(datos)
+```
+
+
+# Preguntas guía
+1. ¿Qué países tienen mayor proporción de energía renovable?
+```{r top_paises_renovables, message=FALSE, warning=FALSE}
+# Filtrando los datos del último año registrado y obteniendo el top 15 de los países con mayor proporción de energías renovable.
+anio_ultimo <- max(datos$Year, na.rm = TRUE)
+
+top_renew <- datos %>%
+  filter(Year == anio_ultimo) %>%
+  arrange(desc(Renewables)) %>%
+  slice_head(n = 15) %>%
+  mutate(Entity = fct_reorder(Entity, Renewables))
+
+```
+
+```{r}
+ggplot(top_renew,
+       aes(x = Renewables,
+           y = Entity,
+           fill = Renewables,
+           text = paste0(
+             "<b>", Entity, "</b><br>",
+             "Renovables: ", round(Renewables, 1), "%<br>",
+             "Fósiles: ", round(Fossil_Fuels, 1), "%<br>",
+             "Continente: ", Continent, "<br>",
+             "Ingreso: ", Income_Group
+             ))) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = paste0(round(Renewables, 1), "%")),
+            hjust = -0.1, size = 3) +
+  scale_x_continuous(
+    expand = expansion(mult = c(0, 0.15)),
+    labels = function(x) paste0(x, "%")
+  ) +
+  scale_fill_gradient(low = "#a6cee3", high = "#1f78b4") +
+  labs(
+    title = paste0("Top 15 países por proporción de energías renovables (", anio_ultimo, ")"),
+    x = "% de energías renovables",
+    y = NULL,
+    fill = "% renovables"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(b = 10)),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+```
+### El gráfico muestra que, entre los 15 principales países que consumen un mayor porcentaje de energías renovables en el último año registrado, se encuentran: Noruega, Uruguay, Costa Rica, El Salvador, Kenia, Luxemburgo, Tayikistán, Dinamarca, Austria, Brasil, Portugal, Nueva Zelanda, Kirguistán, Lituania y Georgia.
+
+
+2. ¿Qué tan rápido crece la participación de energías renovables en el tiempo?
+```{r}
+# Obteniendo las tasas de crecimiento para cada continente a partir regresión lineal
+tc_contientes <- datos %>%
+  dplyr::group_by(Continent) %>%
+  dplyr::reframe(
+    broom::tidy(lm(Renewables ~ Year))
+  ) %>%
+  dplyr::filter(term == "Year") %>% 
+  dplyr::arrange(desc(estimate))
+
+tc_contientes
+
+```
+
+
+```{r}
+# Graficando las tasas de crecimiento
+ggplot(tc_contientes, aes(x = reorder(Continent, estimate), y = estimate)) +
+  geom_segment(aes(xend = Continent, yend = 0), 
+               color = "gray50", linewidth = 1) +
+  geom_point(aes(color = estimate > 0), size = 5) +
+  geom_text(aes(label = sprintf("%+.2f %%/año", estimate)),
+            nudge_x = 0.3, size = 3.5) +
+  coord_flip() +
+  expand_limits(y = c(
+    min(tc_contientes$estimate) * 1.1,
+    max(tc_contientes$estimate) * 1.1
+  )) +
+  labs(
+    title = "Crecimiento anual del consumo de energías renovables",
+    x = NULL,
+    y = NULL
+  ) +
+  scale_color_manual(values = c("TRUE" = "#2E8B57", "FALSE" = "#CD5C5C"), 
+                     guide = "none") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(b = 10)),
+    axis.text.y = element_text(size = 10),
+    panel.grid.major.y = element_blank(),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+```
+### Europa lidera significativamente con un crecimiento del +0.92 %/año, demostrando una transición energética más acelerada hacia las energías renovables. Le sigue Oceanía con +0.48 %/año, mostrando un compromiso importante pero a menor escala.
+
+### Por otro lado, Asia presenta un crecimiento moderado (+0.29 %/año), lo que resulta interesante considerando su tamaño y población, sugiriendo que aún tiene un gran potencial por desarrollar.
+
+### Finalmente, África y América muestran los crecimientos más bajos (+0.13 %/año y +0.05 %/año respectivamente), lo que indica posibles barreras para la implementación de energías renovables, como limitaciones en inversión, infraestructura o políticas energéticas.
+
+
+3. Qué relación existe entre el desarrollo económico y el uso de energías limpias?
+*Low income*: 1,135 dólares o menos
+*Lower-middle income*: Entre 1,136 y 4,495 dólares
+*Upper-middle income*: Entre 4,496 y 13,935 dólares
+*High income*: Más de 13,935 dólares
+
+```{r}
+# Obteniendo la evolución promedio por grupo de ingreso
+tendencia_grupo <- datos %>%
+  dplyr::filter(Year >= 2000) %>% 
+  dplyr::group_by(Year, Income_Group) %>%
+  dplyr::summarise(
+    Renewables_sd = sd(Renewables, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      where(is.character),
+      ~ gsub(" countries", "", .)
+      )
+    ) %>%
+  dplyr::arrange(desc(Income_Group))
+
+tendencia_grupo
+
+
+```
+
+
+```{r}
+# Graficando la tendencia
+ggplot(tendencia_grupo, aes(x = Year, y = Renewables_sd, color = Income_Group)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "Tendencia: Energías Renovables por Nivel de Ingreso",
+    x = NULL,
+    y = "Desviación estándar del % de ER",
+    color = NULL,
+  ) +
+  scale_color_manual(
+    values = c(
+      "Low-income"           = "#66C2A5",
+      "Lower-middle-income"  = "#FC8D62",  
+      "Upper-middle-income"  = "#8DA0CB",  
+      "High-income"          = "#E78AC3" 
+    )
+  ) +
+  scale_x_continuous(breaks = seq(2000, 2024, 4)) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(b = 10)),
+    legend.position = "top",
+    legend.box.spacing = unit(0, "cm"),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 9),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+```
+### La tendencia de la desviación estándar revela que la transición energética es más homogénea en países de altos ingresos, mientras que en países de ingresos medios hay mayor desigualdad en la adopción de renovables entre naciones. Los países de bajos ingresos muestran uniformidad en el estancamiento."
+
+4. ¿Hay diferencias por región?
+*Pregunta específica*: ¿La desigualdad entre países en el porcentaje de energías renovables ha bajado o subido con el tiempo (convergencia o divergencia)?
+
+```{r}
+energia_paises <- datos %>%
+  dplyr::filter(nchar(Code) == 3)
+
+disp_cont <- energia_paises %>%
+  dplyr::group_by(Continent, Year) %>%
+  dplyr::summarise(
+    sd_renew = sd(Renewables, na.rm = TRUE),
+    n_paises = dplyr::n(),
+    .groups = "drop"
+  ) %>%
+  dplyr::filter(
+    Year >= 2000,
+    n_paises >= 3 # quitamos años con muy poquitos países (sobre todo Oceania)
+  )
+```
+
+```{r dispersion_continente_lineas, message=FALSE, warning=FALSE}
+ggplot(disp_cont,
+       aes(x = Year, y = sd_renew, color = Continent)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Dispersión del % de Energías Renovables entre países por continente",
+    subtitle = "Desviación estándar del % de ER (sólo años con ≥ 3 países por continente)",
+    x = "Año",
+    y = "Desviación estándar del % de ER",
+    color = "Continente"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(b = 10)),
+    plot.subtitle = element_text(size = 11, hjust = 0.5, margin = margin(b = 10)),
+    legend.position = "top",
+    legend.box.spacing = unit(0, "cm"),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 9),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+```
+### Los países de bajos ingresos presentan una desviación estándar consistentemente baja a lo largo del periodo analizado, lo que refleja una estabilidad en la adopción de energías renovables entre los miembros del grupo. Esta homogeneidad sugiere que, a diferencia de los grupos de ingresos medios —donde se observan trayectorias divergentes entre países líderes y rezagados—, las naciones de bajos ingresos comparten barreras estructurales similares que limitan de manera uniforme su transición energética.
+
+```{r dispersion_continente_boxplot, message=FALSE, warning=FALSE}
+disp_cont_resumen <- disp_cont 
+
+ggplot(disp_cont_resumen,
+       aes(x = Continent, y = sd_renew)) +
+  geom_boxplot() +
+  labs(
+    title = "Dispersión del % de renovables entre países por continente",
+    subtitle = "Distribución de la desviación estándar anual (2000–2024)",
+    x = "Continente",
+    y = "Desviación estándar del % de renovables"
+  ) +
+  theme_minimal()
+
+```
+### La figura muestra que la dispersión del porcentaje de energías renovables entre países difiere claramente por continente. África presenta las desviaciones estándar más altas, lo que indica una gran heterogeneidad en sus matrices energéticas: conviven países muy dependientes de fósiles con otros mucho más renovables. Las Américas y Asia se ubican en un nivel intermedio de dispersión, mientras que Europa exhibe los valores más bajos, sugiriendo que los países europeos son relativamente más homogéneos en la participación de renovables. En el caso de Oceanía, la dispersión es similar a la europea, aunque esta comparación debe interpretarse con cautela por el menor número de países en la región.
+
+
+
+# Modelo
+
+Crear un modelo para explicar la renewables_share (porcentaje) por país-año con variables económicas y de política energética.
+
+El modelo estimado se puede escribir como:
+
+$$
+\text{Renewables}_{it} =
+\beta_0 
++ \beta_1 \,\text{Year_c}_{t}
++ \sum_{g} \gamma_g \, D^{\text{Income}}_{g,i}
++ \sum_{c} \theta_c \, D^{\text{Continent}}_{c,i}
++ \delta \, D^{\text{NZ}}_{i,t}
++ \varepsilon_{it},
+$$
+
+donde:
+- $i$ indexa países y $t$ años.
+- $\text{Year\c}{t}$ es el año centrado en 2000.
+- $D^{\text{Income}}_{g,i}$ son dummies de grupo de ingreso (referencia: \textit{low-income countries}).
+- $D^{\text{Continent}}_{c,i}$ son dummies de continente (referencia: África).
+- $D^{\text{NZ}}_{i,t}$ indica si el país tiene un objetivo formal de Net Zero (referencia: \textit{compromiso no vinculante}).
+
+## Construcción de la variable de política climática
+
+La base de datos original incluye, para cada país, una variable cualitativa Net_Zero_Targets que clasifica el estado de los compromisos de neutralidad de carbono (Net Zero) en cinco categorías: Achieved (self-declared), Declaration / pledge, In law, In policy document y Proposed / in discussion. Con el fin de incorporar esta información en el análisis de forma más sintética, se recodificó dicha variable en dos grupos:
+
+*Objetivo formal*: países cuyo compromiso de neutralidad de carbono está incorporado en una ley o en un documento de política pública (In law, In policy document).
+
+*Compromiso no vinculante*: países que cuentan con declaraciones, propuestas en discusión o metas auto-declaradas (Declaration / pledge, Proposed / in discussion, Achieved (self-declared)).
+
+La nueva variable, denominada NetZero_Group, se definió mediante una instrucción case_when en R, y se descartaron únicamente los casos residuales que no caían en ninguna de estas categorías. En la muestra final utilizada para el modelo, alrededor de 3,221 observaciones corresponden a países con objetivo formal y 1,811 a países con compromiso no vinculante, lo que garantiza variación suficiente para identificar diferencias asociadas al tipo de compromiso climático.
+
+```{r}
+energia_paises <- datos 
+
+energia_modelo <- energia_paises %>%
+  mutate(
+    Year_c = Year - 2000,
+    NetZero_Group = case_when(
+      Net_Zero_Targets %in% c("In law", "In policy document") ~ "Objetivo formal",
+      Net_Zero_Targets %in% c("Declaration / pledge",
+                              "Proposed / in discussion",
+                              "Achieved (self-declared)") ~ "Compromiso no vinculante",
+      TRUE ~ NA_character_   # sólo por si algún día aparece algo raro
+    )
+  ) %>%
+  filter(
+    !is.na(Renewables),
+    !is.na(Income_Group),
+    !is.na(Continent),
+    !is.na(NetZero_Group)   # aquí ya eliminamos los casos raros, si los hubiera
+  ) %>%
+  mutate(
+    Income_Group  = fct_relevel(Income_Group, "Low-income countries"),
+    Continent     = as.factor(Continent),
+    # referencia: países con compromiso no vinculante
+    NetZero_Group = fct_relevel(NetZero_Group, "Compromiso no vinculante")
+  )
+
+# Checa cuántos hay en cada grupo
+energia_modelo %>% count(NetZero_Group)
+
+modelo_ren <- lm(
+  Renewables ~ Year_c + Income_Group + Continent + NetZero_Group,
+  data = energia_modelo
+)
+
+kable(
+  tidy(modelo_ren),
+  digits = 3,
+  col.names = c("Parámetro", "Estimación", "Error estándar", "t", "Valor p")
+)
+
+glance(modelo_ren)
+
+
+```
+
+## Resultados del modelo
+
+Se estimó un modelo de regresión lineal donde la variable dependiente es el porcentaje de energías renovables en la matriz energética (Renewables) para cada país-año. La especificación incluye como regresores una tendencia temporal (año centrado en 2000, Year_c), el grupo de ingreso del país (Income_Group), el continente (Continent) y la variable de política climática recién construida (NetZero_Group). La categoría de referencia para el grupo de ingreso es Low-income countries, para el continente es África y, en el caso de la política climática, el grupo de referencia es Compromiso no vinculante.
+
+El coeficiente asociado al tiempo es positivo y estadísticamente significativo: el término Year_c toma un valor aproximado de 0.67, lo que implica que, en promedio, la participación de las energías renovables aumenta alrededor de 0.7 puntos porcentuales por año, manteniendo constantes las demás variables. En comparación con los países de bajos ingresos, los países de ingresos medios y altos presentan coeficientes negativos y significativos, lo que indica que, controlando por año, continente y política climática, los países de menor ingreso tienden a exhibir una mayor proporción de renovables en su matriz energética, probablemente por la importancia relativa de fuentes como la hidroeléctrica o la biomasa tradicional.
+
+En cuanto a las diferencias regionales, los coeficientes por continente sugieren que los países de las Américas y Europa presentan, en promedio, una participación de renovables mayor que los países africanos con características similares, mientras que los países de Asia y Oceanía muestran niveles relativamente inferiores. Por último, el coeficiente estimado para NetZero_GroupObjetivo formal es de aproximadamente +13 puntos porcentuales y resulta altamente significativo, lo que indica que los países con un objetivo formal de Net Zero tienen, en promedio, una participación de renovables sustancialmente mayor que aquellos que sólo cuentan con compromisos no vinculantes.
+
+El coeficiente de determinación del modelo (R² ≈ 0.14) muestra que la especificación captura una parte relevante, aunque limitada, de la variación observada en el porcentaje de renovables entre países y a lo largo del tiempo. Esto es consistente con la naturaleza del fenómeno analizado: la transición energética depende de una combinación compleja de factores tecnológicos, institucionales, geopolíticos y de diseño de políticas específicas que no están completamente reflejados en las variables incluidas en este modelo exploratorio.
+
+```{r arbol_regresion, message=FALSE, warning=FALSE}
+# Apicamos un modelo mas: Árbol de regresión:
+set.seed(123)
+n <- nrow(energia_modelo)
+id_train <- sample(seq_len(n), size = 0.75 * n)
+
+train <- energia_modelo[id_train, ]
+test  <- energia_modelo[-id_train, ]
+
+
+arbol_ren <- rpart(
+  Renewables ~ Year_c + Income_Group + Continent + NetZero_Group,
+  data   = train,
+  method = "anova",
+  control = rpart.control(
+    minsplit = 100,  # mínimo de observaciones para hacer un split
+    maxdepth = 4,    # profundidad máxima del árbol (para que no se sobreajuste)
+    cp       = 0.001 # parámetro de complejidad
+  )
+)
+
+rpart.plot(
+  arbol_ren,
+  type = 2, extra = 101,
+  fallen.leaves = TRUE,
+  main = "Árbol de regresión para % de energías renovables"
+)
+
+pred_train <- predict(arbol_ren, newdata = train)
+pred_test  <- predict(arbol_ren, newdata = test)
+
+rmse_train <- rmse(train$Renewables, pred_train)
+rmse_test  <- rmse(test$Renewables, pred_test)
+
+rmse_train
+rmse_test
+
+```
+
+
+
+*El árbol de regresión utiliza como variables explicativas el año (centrado), el grupo de ingreso, el continente y el tipo de compromiso de Net Zero. La primera partición se realiza por grupo de ingreso, separando a los países de bajos ingresos del resto, lo que confirma la importancia de esta variable en la explicación del porcentaje de renovables. En las ramas siguientes aparecen divisiones por continente (en particular Asia frente a otras regiones) y por tipo de compromiso climático, así como por periodos de tiempo más recientes, lo que sugiere que tanto la localización geográfica como la formalización de objetivos de Net Zero influyen en el nivel de adopción de energías renovables.*
+
+*El error cuadrático medio del modelo (RMSE ≈ 29.3 en entrenamiento y 29.7 en prueba) indica que el árbol reproduce patrones generales de los datos, pero deja una fracción considerable de la variabilidad sin explicar, en línea con los resultados obtenidos con la regresión lineal. Su principal ventaja radica en la interpretabilidad: el árbol permite visualizar de manera sencilla combinaciones de características (grupo de ingreso, región, tipo de compromiso) asociadas a distintos niveles promedio de participación de energías renovables.*
+
+
+# Conclusiones
+- Indicadores clave y reflexión sobre sostenibilidad 
+- Conclusiones
+```{r}
+
+```
+
+
