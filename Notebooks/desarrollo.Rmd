@@ -26,8 +26,8 @@ library(rpart.plot)
 library(Metrics)
 library(knitr)
 
-rm(list = ls())
-gc(reset = TRUE)
+# rm(list = ls())
+# gc(reset = TRUE)
 ```
 
 

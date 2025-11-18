@@ -1,6 +1,6 @@
 
 funcion_main <- function(datos, año1 = 2024, medida = "sd"){
-
+  
   # Agregando el continente que le conrresponde a cada país
   datos <- datos %>%
     dplyr::mutate(
@@ -124,9 +124,12 @@ funcion_main <- function(datos, año1 = 2024, medida = "sd"){
     geom_line(size = 1.2) +
     geom_point(size = 1.5) +
     labs(
-      title = "Tendencia: Energías Renovables por Nivel de Ingreso",
+      title = "Tendencia de las Energías Renovables por Nivel de Ingreso",
       x = NULL,
-      y = "Desviación estándar del % de ER",
+      y = ifelse(
+        medida == "mean",
+        "Promedio del % de ER",
+        "Desviación estándar del % de ER"),
       color = NULL,
     ) +
     scale_color_manual(
@@ -178,9 +181,14 @@ funcion_main <- function(datos, año1 = 2024, medida = "sd"){
     geom_boxplot(alpha = 0.8, show.legend = FALSE) +
     labs(
       title = "Dispersión del % de renovables entre países por continente",
-      subtitle = "Distribución de la desviación estándar anual (2000-2024)",
+      subtitle = ifelse(medida == "sd",
+                        "Distribución de la desviación estándar anual (2000-2024)",
+                        "Distribución del promedio anual (2000-2024)"),
       x = "Continente",
-      y = "Desviación estándar del % de renovables"
+      y = ifelse(
+        medida == "mean",
+        "Promedio del % de ER",
+        "Desviación estándar del % de ER"),
     ) +
     theme_minimal() +
     scale_fill_brewer(palette = "Set2") +
