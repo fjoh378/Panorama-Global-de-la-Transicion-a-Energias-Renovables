@@ -17,6 +17,13 @@ library(RColorBrewer)
 # 1. CONFIGURACIÓN TÉCNICA, COLORES Y PALETAS
 # ==============================================================================
 
+# ==============================================================================
+source("funcion_main.R")
+datos <- read.csv("data.csv")
+
+
+# =============================================================================
+
 # Colores principales (Líneas y Gráficas)
 cols_pal <- list(
   Solar = "#FFC107", # Amber
@@ -92,6 +99,8 @@ cols_def <- list(
 
 er_data <- read.csv("cruce_er_cf.csv")
 pred_data <- read.csv("predicciones_world_fossil_renew_lstm_train_test.csv")
+
+
 
 # Limpieza y Geocodificación
 er_clean <- er_data %>%
@@ -211,7 +220,38 @@ ui <- fluidPage(
         "Información obtenida de:"),
       p(class="text-muted small", style="font-style: italic;", 
         "Ember (2025); Energy Institute - Statistical Review of World Energy (2025) – with major processing by Our World in Data")
+  ),
+  # ----------------------------------------------------------------------------------------------------------------------------
+  # Añadiendo la parte del otro dash
+  # ----------------------------------------------------------------------------------------------------------------------------
+   tags$h3("Vision global de las energias renovables"),
+  sidebarLayout(
+    sidebarPanel(
+        h3("Filtros"),
+        #Para seleccionar el año
+        numericInput( "anio", "Año", value = 2024, min = 2000, max = 2024 ),
+        #Para seleccionar que medida
+        selectizeInput( "medida", "Selecciona medidas descriptivas", list("Media" = "mean", "Desviacion" = "sd"), multiple = FALSE )
+    ),
+
+    mainPanel(
+      #Graficas que hiciero Diego y Brayan
+      fluidRow(
+        column(6, plotOutput("graf1")),
+        column(6, plotOutput("graf2"))
+    ),
+
+    fluidRow(
+        column(6, plotOutput("graf3")),
+        column(6, plotOutput("graf4"))
+    )
+    
   )
+
+
+)
+ # ----------------------------------------------------------------------------------------------------------------------------
+
 )
 
 # ==============================================================================
@@ -417,6 +457,38 @@ server <- function(input, output, session) {
   energy_server_logic("hydro", "Hydro", er_clean, world_sf)
   energy_server_logic("bio", "Bio", er_clean, world_sf)
   energy_server_logic("geo", "Geo", er_clean, world_sf)
+
+
+     # Llama a tu funcion_main usando los inputs
+  graficas <- reactive({
+    funcion_main(
+      datos,
+      año1   = input$anio,     # viene del numericInput
+      medida = input$medida    # viene del selectInput
+    )
+  })
+
+  #Haciendo la primera grafica:
+  output$graf1 <- renderPlot({
+    graficas()[[1]]            
+  })
+
+  # Y la segunda:
+  output$graf2 <- renderPlot({
+    graficas()[[2]]            
+  })
+
+  output$graf3 <- renderPlot({
+    graficas()[[3]]            
+  })
+  
+  output$graf4 <- renderPlot({
+    graficas()[[4]]            
+  })
+
+
+
+
 }
 
 runApp(shinyApp(ui, server), launch.browser = TRUE)

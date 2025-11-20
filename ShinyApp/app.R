@@ -18,6 +18,8 @@ library(knitr)
 #
 #
 
+
+
 source(here("ShinyApp", "modulos", "funcion_main.R")) # Funcion para traer las graficas
 
 #--------Carga de datos---------------------------------------------------------------------
