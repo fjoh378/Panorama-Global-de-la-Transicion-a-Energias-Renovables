@@ -1,3 +1,7 @@
+# ==============================================================================
+# APP.R - MONITOR GLOBAL DE TRANSICIÓN ENERGÉTICA
+# ==============================================================================
+
 library(shiny)
 library(leaflet)
 library(dplyr)
@@ -12,10 +16,37 @@ library(htmltools)
 library(tidyr)
 library(plotly)
 library(RColorBrewer)
+library(shiny)
+library(leaflet)
+library(dplyr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(bslib)
+library(countrycode)
+library(shinyWidgets)
+library(ggplot2)
+library(htmltools)
+library(tidyr)
+library(plotly)
+library(RColorBrewer)
+library(forcats) 
 
 # ==============================================================================
 # 1. CONFIGURACIÓN TÉCNICA Y PALETAS
 # ==============================================================================
+
+
+
+# ==============================================================================
+source("funcion_main.R")
+datos <- read.csv("data.csv")
+
+
+# =============================================================================
+
+
+
 
 cols_pal <- list(
   Solar = "#FFC107", 
@@ -84,14 +115,14 @@ cols_def <- list(
 )
 
 # ==============================================================================
-# 2. CARGA Y PROCESAMIENTO (CORRECCIÓN "null")
+# 2. CARGA Y PROCESAMIENTO
 # ==============================================================================
 
-# CORRECCIÓN CRÍTICA: Agregamos na.strings = "null" para que R entienda tus vacíos
+# NOTA: Rutas relativas (sin C:/Users/...) y manejo de "null" como string
 er_data <- read.csv("CRUCE_ER_CF.csv", na.strings = c("null", "NA", "")) 
 pred_data <- read.csv("predicciones_world_fossil_renew_lstm_train_test.csv", na.strings = c("null", "NA", ""))
 
-# Aseguramos que sean numéricos (por si acaso queda basura)
+# Forzar numéricos para evitar errores si queda algún texto basura
 pred_data$Real <- as.numeric(pred_data$Real)
 pred_data$Pred_LSTM <- as.numeric(pred_data$Pred_LSTM)
 
@@ -111,6 +142,7 @@ if ("World" %in% er_clean$entity) {
     mutate(entity = "World")
 }
 
+# Carga de mapa (usando paquete rnaturalearthdata interno)
 world_sf <- ne_countries(scale = "medium", returnclass = "sf") %>% select(iso_a3, geometry)
 
 # ==============================================================================
@@ -119,7 +151,8 @@ world_sf <- ne_countries(scale = "medium", returnclass = "sf") %>% select(iso_a3
 
 energy_block_ui <- function(id, title, color, icon_name, description, has_share, metric_label_text) {
   ns <- NS(id)
-  
+
+
   div(class = "card shadow-sm mb-5 border-0",
       div(class = "card-header bg-white py-3", style=paste0("border-top: 5px solid ", color, ";"),
           h3(icon(icon_name), title, style = paste0("color:", color, "; font-weight: 800; margin: 0;")),
@@ -166,33 +199,69 @@ ui <- fluidPage(
       h1("Monitor Global de Transición Energética", style="font-weight: 900; color: #2c3e50;"),
       p("Análisis integral de la matriz energética mundial: Historia y Proyecciones (LSTM).", class="text-muted")
   ),
-  
-  div(class = "container-fluid px-4 mb-5",
-      div(class = "card shadow-sm border-0",
-          div(class = "card-header bg-white py-3", style="border-top: 5px solid #2c3e50;",
-              h3(icon("chart-line"), "Panorama Global y Proyecciones", style = "color: #2c3e50; font-weight: 800; margin: 0;")
-          ),
-          div(class = "card-body",
-              tabsetPanel(
-                tabPanel("Historia: Comparativa por Fuente (TWh)", br(),
-                         fluidRow(column(12, 
-                            div(class="d-flex align-items-center bg-light p-3 rounded mb-3",
-                                strong("Línea de Tiempo: ", class="me-3"),
-                                div(style="flex-grow: 1;", uiOutput("slider_global_ui"))
-                            )
-                         )),
-                         fluidRow(column(12, plotlyOutput("global_plot", height = "500px")))
-                ),
-                tabPanel("Proyección IA: Fósiles vs Renovables", br(),
-                         div(class="alert alert-light border", icon("robot"), 
-                             strong("Modelo LSTM:"), " Tendencia proyectada de la participación en energía primaria."),
-                         plotlyOutput("forecast_plot", height = "500px")
-                )
-              )
+  ##-------------------------------------------------------------------------------------------------------------------------------------------------------
+  ##-------------------------------------------------------------------------------------------------------------------------------------------------------
+  ##-------------------------------------------------------------------------------------------------------------------------------------------------------
+  div(class = "card-body",
+    tabsetPanel(
+
+      # TAB 1
+      tabPanel("Historia: Comparativa por Fuente (TWh)", br(),
+        fluidRow(
+          column(12,
+            div(class="d-flex align-items-center bg-light p-3 rounded mb-3",
+                strong("Línea de Tiempo: ", class="me-3"),
+                div(style="flex-grow: 1;", uiOutput("slider_global_ui"))
+            )
           )
+        ),
+        fluidRow(
+          column(12, plotlyOutput("global_plot", height = "500px"))
+        )
+      ),
+
+      # TAB 2
+      tabPanel("Proyección IA: Fósiles vs Renovables", br(),
+        div(class="alert alert-light border", icon("robot"),
+            strong("Modelo LSTM:"), 
+            " Tendencia proyectada de la participación en energía primaria."
+        ),
+        fluidRow(
+          column(12, plotlyOutput("forecast_plot", height = "500px"))
+        )
+      ),
+
+      # TAB 3 CON SIDEBAR
+      tabPanel("Visión global de las energías renovables",
+        fluidRow(
+          column(3,
+            h3("Filtros"),
+            numericInput("anio", "Año", value = 2024, min = 2000, max = 2024),
+            selectizeInput("medida", "Selecciona medidas descriptivas",
+                           list("Media" = "mean", "Desviación" = "sd"),
+                           multiple = FALSE)
+          ),
+          column(9,
+            fluidRow(
+              column(6, plotOutput("graf1")),
+              column(6, plotOutput("graf2"))
+            ),
+            fluidRow(
+              column(6, plotOutput("graf3")),
+              column(6, plotOutput("graf4"))
+            )
+          )
+        )
       )
-  ),
-  
+
+    )
+)
+
+##-------------------------------------------------------------------------------------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------------------------------------------------------------
+,
+  # Vision global 
   div(class = "container-fluid px-4",
       energy_block_ui("solar", "Energía Solar", cols_def$Solar$color, "sun", cols_def$Solar$desc, TRUE, cols_def$Solar$metric_label),
       energy_block_ui("wind", "Energía Eólica", cols_def$Wind$color, "wind", cols_def$Wind$desc, TRUE, cols_def$Wind$metric_label),
@@ -242,6 +311,7 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
         geo <- world_geo %>% left_join(map_dat, by = c("iso_a3" = "iso3"))
         vals <- geo$Val
         pal <- colorBin(palette = conf$map_palette, domain = vals, bins = bins, na.color = "#ffffff") 
+        
         leaflet(geo) %>% setMaxBounds(-180, -90, 180, 90) %>%
           addMapPane("fondo", zIndex = 400) %>% addMapPane("datos", zIndex = 450) %>% addMapPane("etiquetas", zIndex = 500) %>%
           addProviderTiles("CartoDB.PositronNoLabels", options = providerTileOptions(pane = "fondo")) %>%
@@ -277,7 +347,7 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
       
       top_hist <- data_full %>% filter(entity %in% top_names) %>% select(year, entity, Val = all_of(col_name))
       
-      # Ordenamiento del factor para Hover
+      # Ordenamiento Top 5
       factor_order <- top_hist %>% group_by(entity) %>% summarize(max_val = max(Val, na.rm=TRUE)) %>% arrange(desc(max_val)) %>% pull(entity)
       top_hist$entity <- factor(top_hist$entity, levels = factor_order)
       top_hist <- top_hist %>% arrange(entity, year)
@@ -349,6 +419,40 @@ server <- function(input, output, session) {
   energy_server_logic("hydro", "Hydro", er_clean, world_sf)
   energy_server_logic("bio", "Bio", er_clean, world_sf)
   energy_server_logic("geo", "Geo", er_clean, world_sf)
+
+
+### ------------------------------------------------------------------------------------------------------------
+     # Llama a tu funcion_main usando los inputs
+  graficas <- reactive({
+    funcion_main(
+      datos,
+      año1   = input$anio,     # viene del numericInput
+      medida = input$medida    # viene del selectInput
+    )
+  })
+
+  #Haciendo la primera grafica:
+  output$graf1 <- renderPlot({
+    graficas()[[1]]            
+  })
+
+  # Y la segunda:
+  output$graf2 <- renderPlot({
+    graficas()[[2]]            
+  })
+
+  output$graf3 <- renderPlot({
+    graficas()[[3]]            
+  })
+  
+  output$graf4 <- renderPlot({
+    graficas()[[4]]            
+  })
+
+
+
+
 }
 
-runApp(shinyApp(ui, server), launch.browser = TRUE)
+# IMPORTANTE: Para ShinyApps, solo llamamos a shinyApp
+shinyApp(ui, server)
