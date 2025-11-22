@@ -23,7 +23,6 @@ library(visdat)
 
 
 ```{r}
-#Haciendo la carga de los datos
 print(here())
 ```
 
@@ -74,6 +73,5 @@ vis_miss(data_final)
 ```
 
 ```{r}
-#Guardando los datos limpios
 write.csv(data_final, here("Data", "Clean", "data.csv"), row.names = TRUE, na="")
 ```
