@@ -28,7 +28,8 @@ RENEWABLE-ENERGY/
 ├── Data/                            # Datos limpios y crudos
 │
 ├── Procesamiento/                   # Códigos para procesar la información y generar variables y tablas nuevas
-│ 
+│
+├── Modelos/                   # Códigos de modelos predictivos
 │
 ├── ShinyApp/                        # Carpeta de PRODUCCIÓN del Dashboard (Despliegue)
 
