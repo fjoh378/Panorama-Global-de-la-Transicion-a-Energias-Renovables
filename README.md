@@ -6,7 +6,7 @@
 
 Este proyecto es una aplicación web interactiva desarrollada en **R Shiny** que permite monitorear, visualizar y analizar la evolución de la escena energética mundial.
 
-La herramienta aborda la necesidad de comprender la velocidad y los determinantes de la transición desde combustibles fósiles hacia fuentes renovables. Utilizando datos históricos consolidados ([Our World in Data, Energy Institute](https://ourworldindata.org/renewable-energy)) y modelos avanzados, el dashboard no solo presenta estadísticas descriptivas, sino que ofrece explicaciones econométricas sobre la adopción de renovables y proyecciones futuras basadas en Inteligencia Artificial.
+La herramienta aborda la necesidad de comprender la velocidad y los determinantes de la transición desde combustibles fósiles hacia fuentes renovables. Utilizando datos históricos consolidados ([Our World in Data, Energy Institute](https://ourworldindata.org/renewable-energy)) y modelos avanzados, el dashboard no solo presenta estadísticas descriptivas, sino que ofrece explicaciones econométricas sobre la adopción de renovables y proyecciones futuras.
 
 ## 2. Características Principales
 
